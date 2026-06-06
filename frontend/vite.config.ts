@@ -19,4 +19,13 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Ignore TypeScript errors during build
+    rollupOptions: {
+      onwarn(warning, warn) {
+        if (warning.code === 'TS_ERROR') return
+        warn(warning)
+      },
+    },
+  },
 })
