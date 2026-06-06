@@ -4,12 +4,11 @@ services:
   db:
     image: mysql:8.0
     restart: unless-stopped
-    env_file: ./backend/.env
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-netsysteme}
-      MYSQL_DATABASE:      ${DB_NAME:-netsysteme_db}
-      MYSQL_USER:          ${DB_USER:-netsysteme}
-      MYSQL_PASSWORD:      ${DB_PASSWORD:-netsysteme}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE:      ${DB_NAME}
+      MYSQL_USER:          ${DB_USER}
+      MYSQL_PASSWORD:      ${DB_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -18,6 +17,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
+    networks:
+      - netsysteme-network
 
   # ── Backend Django ───────────────────────────────────────────────────────────
   backend:
@@ -27,16 +28,15 @@ services:
     restart: unless-stopped
     env_file: ./backend/.env
     environment:
-      # Écrase les valeurs du .env pour le contexte Docker
-      DB_ENGINE:   django.db.backends.mysql
-      DB_HOST:     db
-      DB_PORT:     "3306"
-      DB_NAME:     ${DB_NAME:-netsysteme_db}
-      DB_USER:     ${DB_USER:-netsysteme}
-      DB_PASSWORD: ${DB_PASSWORD:-netsysteme}
-      DEBUG:     "False"
-      ALLOWED_HOSTS:         "localhost,127.0.0.1,backend,netsysteme_app.serveur-vps.net"
-      CORS_ALLOWED_ORIGINS:  "http://localhost:8082,http://netsysteme_app.serveur-vps.net,https://netsysteme_app.serveur-vps.net"
+      DB_ENGINE:    django.db.backends.mysql
+      DB_HOST:      db
+      DB_PORT:      "3306"
+      DB_NAME:      ${DB_NAME}
+      DB_USER:      ${DB_USER}
+      DB_PASSWORD:  ${DB_PASSWORD}
+      DEBUG:        "False"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,backend,netsysteme.vps119029.serveur-vps.net"
+      CORS_ALLOWED_ORIGINS: "http://netsysteme.vps119029.serveur-vps.net,https://netsysteme.vps119029.serveur-vps.net"
     depends_on:
       db:
         condition: service_healthy
@@ -45,6 +45,8 @@ services:
       - media_files:/app/media
     expose:
       - "8000"
+    networks:
+      - netsysteme-network
 
   # ── Frontend React + Nginx ───────────────────────────────────────────────────
   frontend:
@@ -57,9 +59,14 @@ services:
     depends_on:
       - backend
     volumes:
-      # Partage les volumes pour servir les fichiers statiques et media
       - static_files:/app/staticfiles:ro
       - media_files:/app/media:ro
+    networks:
+      - netsysteme-network
+
+networks:
+  netsysteme-network:
+    driver: bridge
 
 volumes:
   mysql_data:
