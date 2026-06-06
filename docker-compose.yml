@@ -1,0 +1,63 @@
+services:
+
+  # ── Base de données MySQL ────────────────────────────────────────────────────
+  db:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-netsysteme}
+      MYSQL_DATABASE:      ${DB_NAME:-netsysteme_db}
+      MYSQL_USER:          ${DB_USER:-netsysteme}
+      MYSQL_PASSWORD:      ${DB_PASSWORD:-netsysteme}
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  # ── Backend Django ───────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file: ./backend/.env
+    environment:
+      # Écrase les valeurs du .env pour le contexte Docker
+      DB_ENGINE: django.db.backends.mysql
+      DB_HOST:   db
+      DB_PORT:   "3306"
+      DEBUG:     "False"
+      ALLOWED_HOSTS:         "localhost,127.0.0.1,backend"
+      CORS_ALLOWED_ORIGINS:  "http://localhost"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+    expose:
+      - "8000"
+
+  # ── Frontend React + Nginx ───────────────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    volumes:
+      # Partage les volumes pour servir les fichiers statiques et media
+      - static_files:/app/staticfiles:ro
+      - media_files:/app/media:ro
+
+volumes:
+  mysql_data:
+  static_files:
+  media_files:
